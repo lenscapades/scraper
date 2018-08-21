@@ -1,0 +1,120 @@
+#!/usr/bin/perl -w
+#
+#	Explorer [flags]
+#
+#	Description:	Explore crowdfunding platforms.
+#
+#	Flags:
+#		-v, --verbose
+#			Do not be quiet.
+#
+#		-d, --daemon
+#			Run as a daemon.
+#
+#		-j, --job <datetime>
+#			Schedule next run. Accepts a datetime string.
+#
+#		-p, --proxy
+#			Use proxy redirection.
+#
+#		-<signal>
+#		-s <signal>
+#		--signal <signal>
+#			Specify the signal to be sent. The signal can be specified by using name or number. 
+#
+#		-l, --list
+#			List signal names.
+#
+use lib "$ENV{HOME}/perl5/lib/perl5";
+use lib "$ENV{HOME}/scraper/lib";
+
+use strict;
+use warnings;
+
+use Getopt::Long;
+use Explorer;
+
+sub usage {
+
+	die "Usage: $0 [-d|--daemon] | [-v|--verbose] | [-j|--job] <datetime> | [-p,--proxy] | -<signal> | [-s|--signal] <signal> | [-l|--list]\n";
+}
+
+sub list {
+
+	print "1) SIGHUP	 2) SIGINT	 9) SIGKILL	15) SIGTERM\n";
+
+	exit(0);
+}
+
+my ( $verbose, $daemon, $job, $use_proxy, $signal, $list ) = ( '', '', '', '', '', '' );
+
+my %sig	= ( hup => '', int => '', kill => '', term => '' );
+
+GetOptions(
+	"verbose|v"	=> \$verbose,
+	"daemon|d"	=> \$daemon,
+	"job|j=s"	=> \$job,
+	"proxy|p"	=> \$use_proxy,
+	"SIGHUP|1"	=> \$sig{hup},
+	"SIGINT|2"	=> \$sig{int},
+	"SIGKILL|9"	=> \$sig{kill},
+	"SIGTERM|15"	=> \$sig{term},
+	"signal|s=i"	=> \$signal,
+	"list|l"	=> \$list,
+)
+or usage();
+
+if ( $list ) { list(); }
+
+my $explorer = Explorer->new( {
+
+			proxy	=> $use_proxy,
+		}	
+
+	) or die "$0: Explorer->new() failed\n";
+
+if ( $signal eq '1' || $signal eq '-SIGHUP' || $sig{hup} ) {
+
+	$explorer->kill(qw(HUP));
+
+	exit(0);
+}
+
+if ( $signal eq '2' || $signal eq '-SIGINT' || $sig{int} ) {
+
+	$explorer->kill(qw(INT));
+
+	exit(0);
+}
+
+if ( $signal eq '9' || $signal eq '-SIGKILL' || $sig{kill} ) {
+
+	$explorer->kill(qw(KILL));
+
+	exit(0);
+}
+
+if ( $signal eq '15' || $signal eq '-SIGTERM' || $sig{term} ) {
+
+	$explorer->kill(qw(TERM));
+
+	exit(0);
+}
+
+$explorer->verbose( $verbose );
+
+if ( $job ) {
+
+	$explorer->dispatch();
+
+	$explorer->{dispatch}->schedule( $job );
+
+	exit(0);
+}
+
+if ( $daemon ) {
+
+	$explorer->daemonize();
+}
+
+exit(0);
